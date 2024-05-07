@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.28 FATAL_ERROR)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+project (Networking VERSION 0.1)
+
+add_executable(Networking src/main.cpp src/server.cpp)
+message(${PROJECT_BINARY_DIR})
+
+target_include_directories(Networking PUBLIC 
+                        "src/hpp" "src/")
+
+include_directories("src/hpp" "src/")
