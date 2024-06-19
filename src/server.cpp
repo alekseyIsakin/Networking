@@ -15,21 +15,33 @@ void Server::Init()
     return;
 }
 
+void Server::StartServer(std::string host, std::string Port)
+{
+    if (BindListener(host, Port) != 0)
+    {
+        errorStream << "StartServer failed " << std::endl;
+        perror(errorStream.str().c_str());
+        Cleanup();
+        exit(1);
+    }
+
+    StartListening();
+}
+
 int Server::BindListener(std::string host, std::string port)
 {
     addrinfo hints;
-    std::stringstream ss;
 
     ZeroMemory(&hints, sizeof(hints));
 
-    hints.ai_family = AF_INET;
+    hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
     int IResult = getaddrinfo(host.c_str(), port.c_str(), &hints, &listenerAddr);
     if (IResult != 0)
     {
-        ss << "get addr failed " << IResult << std::endl;
-        perror(ss.str().c_str());
+        errorStream << "get addr failed " << IResult << std::endl;
+        perror(errorStream.str().c_str());
         return IResult;
     }
 
@@ -43,8 +55,8 @@ int Server::BindListener(std::string host, std::string port)
     IResult = bind(listen_fd, listenerAddr->ai_addr, listenerAddr->ai_addrlen);
     if (IResult != 0)
     {
-        ss << "bind socket failed " << IResult << std::endl;
-        perror(ss.str().c_str());
+        errorStream << "bind socket failed " << IResult << std::endl;
+        perror(errorStream.str().c_str());
         return IResult;
     }
 
@@ -54,23 +66,36 @@ int Server::BindListener(std::string host, std::string port)
 
 int Server::StartListening()
 {
-    std::stringstream ss;
+    std::stringstream error;
+    ThreadListener tl = ThreadListener();
+
     int IResult = listen(listen_fd, 5);
     if (IResult != 0)
     {
-        ss << "socket listening failed " << IResult << std::endl;
-        perror(ss.str().c_str());
+        error << "socket listening failed " << IResult << std::endl;
+        perror(error.str().c_str());
         return IResult;
     }
+    const int MAX_THREADS = 3;
+    int last_thread = 0;
 
+    DWORD dwThreadId[MAX_THREADS];
+    HANDLE hThreads[MAX_THREADS];
     socklen_t addr_size;
+
     SOCKET new_fd = accept(listen_fd, nullptr, nullptr);
     if (new_fd == INVALID_SOCKET)
     {
-        ss << "accept connetion failed " << IResult << std::endl;
-        perror(ss.str().c_str());
+        error << "accept connetion failed " << IResult << std::endl;
+        perror(error.str().c_str());
         return IResult;
     }
+
+    hThreads[last_thread] = CreateThread(
+        NULL, 0, StartConnectListenerWinSock,
+        &new_fd, 0, &dwThreadId[last_thread]);
+
+    // tl.StartConnectListener(new_fd);
 
     return 0;
 }
@@ -81,4 +106,29 @@ void Server::Cleanup()
     WSACleanup();
 #endif
     freeaddrinfo(listenerAddr);
+}
+
+const int BUFF_SIZE = 8192;
+
+DWORD WINAPI StartConnectListenerWinSock(LPVOID lpParam)
+{
+    HANDLE hStdout;
+    SOCKET socket;
+
+    TCHAR msgBuff[BUFF_SIZE];
+    size_t cchStringSize;
+    DWORD dwChars;
+
+    socket = *((SOCKET*)lpParam);
+
+    hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    while (true)
+    {
+        memset(msgBuff, 0, sizeof(char) * BUFF_SIZE);
+        int result = recv(socket, msgBuff, BUFF_SIZE, 0);
+
+        StringCchLength(msgBuff, BUFF_SIZE, &cchStringSize);
+        WriteConsole(hStdout, msgBuff, (DWORD)cchStringSize, &dwChars, NULL);
+    }
 }

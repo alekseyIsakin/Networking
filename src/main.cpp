@@ -9,7 +9,7 @@
 
 #include "iostream"
 
-#define DEFAULT_PORT "3000"
+#define DEFAULT_PORT "3050"
 
 void Test()
 {
@@ -138,17 +138,9 @@ void Test()
 
 int main(int argc, char *argv[])
 {
+	// Test();
+
 	Server s = Server();
 	s.Init();
-
-	if (s.BindListener("localhost", DEFAULT_PORT) != 0)
-	{
-		std::cout << "Error" << std::endl;
-		s.Cleanup();
-		exit(1);
-	}
-
-	s.StartListening();
-	
-	s.Cleanup();
+	s.StartServer("localhost", DEFAULT_PORT);
 }
